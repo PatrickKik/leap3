@@ -1,41 +1,56 @@
 package nl.patrickkik.lysanne.leap3;
 
+import org.apache.commons.csv.CSVFormat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Component
-public class AllRawData {
+class AllRawData {
 
-    @Value("${allrawdata.location}")
     private String location;
 
-    private Map<String, Object> data;
+    private List<Map<String, String>> data;
 
-    public String get() {
+    List<Map<String, String>> get() {
         if (Objects.isNull(data)) {
             data = read();
         }
         return data;
     }
 
-    private Map<String, Object> read() {
-
-
-        StringBuilder builder = new StringBuilder();
+    private List<Map<String, String>> read() {
+        List<Map<String, String>> rows = new ArrayList<>();
         try {
-            final BufferedReader reader = new BufferedReader(new FileReader(location));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-            }
+            Reader reader = new FileReader(new File(location));
+            CSVFormat.DEFAULT
+                    .withFirstRecordAsHeader()
+                    .parse(reader)
+                    .forEach(record -> {
+                        Map<String, String> row = new HashMap<>();
+                        for (int colIndex = 0; colIndex < record.size(); colIndex++) {
+                            String value = record.get(colIndex);
+                            row.put(col(colIndex), value);
+                        }
+                        rows.add(row);
+                    });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return builder.toString();
+        return rows;
     }
 
+    String col(int index) {
+        if (index < 26) {
+            return String.valueOf((char) (index + 65));
+        }
+        return col(index / 26 - 1) + col(index % 26);
+    }
+
+    @Value("${allrawdata.location}")
+    void setLocation(String location) {
+        this.location = location;
+    }
 }
