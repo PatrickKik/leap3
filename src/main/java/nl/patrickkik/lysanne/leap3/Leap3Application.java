@@ -127,6 +127,9 @@ public class Leap3Application implements CommandLineRunner {
             }
         });
 
+        writer.flush();
+        writer.close();
+
     }
 
     private List<List<String>> header(List<String> words) {
