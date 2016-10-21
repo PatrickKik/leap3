@@ -1,52 +1,77 @@
 package nl.patrickkik.lysanne.leap3;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
+import java.util.*;
+import java.util.stream.IntStream;
 
 class Subject implements Comparable<Subject> {
 
-    private int id;
-    private int counterBalance;
-    private int[] scores = new int[16];
-    private int[] times = new int[16];
+    private final int id;
+    private final int originalCounterBalance;
+    private final int simplifiedCounterBalance;
+    private final Map<Test, List<Integer>> scores = new EnumMap<>(Test.class);
+    private final Map<Test, List<Integer>> times = new EnumMap<>(Test.class);
 
-    Subject(int id, int counterBalance) {
+    Subject(int id, int originalCounterBalance, int simplifiedCounterBalance) {
         this.id = id;
-        this.counterBalance = counterBalance;
-        Arrays.fill(scores, 0);
-        Arrays.fill(times, 0);
+        this.originalCounterBalance = originalCounterBalance;
+        this.simplifiedCounterBalance = simplifiedCounterBalance;
     }
 
-    void putScore(int trial, int score) {
-        scores[trial - 1] = score;
+    void putScore(Test test, int order, int score) {
+        List<Integer> testScores = scores.getOrDefault(test, cleanList());
+        testScores.set(order - 1, score);
+        scores.put(test, testScores);
     }
 
-    void putTime(int trial, int time) {
-        times[trial - 1] = time;
+    void putTime(Test test, int order, int time) {
+        List<Integer> testTimes = times.getOrDefault(test, cleanList());
+        testTimes.set(order - 1, time);
+        times.put(test, testTimes);
     }
 
-    public String toCSV() {
+    private ArrayList<Integer> cleanList() {
+        ArrayList<Integer> list = new ArrayList<>(16);
+        IntStream.range(0, 16)
+                .forEach(i -> list.add(0));
+        return list;
+    }
+
+    private Test toTest(Rule rule) {
+        return Arrays.stream(rule.tests())
+                .filter(test -> scores.keySet().contains(test))
+                .findAny()
+                .orElseThrow(() -> new IllegalArgumentException(rule.name()));
+    }
+
+    String toCSV(Rule rule) {
+        Test test = toTest(rule);
+        List<Integer> testScores = scores.get(test);
+        List<Integer> testTimes = times.get(test);
+
         StringBuilder sb = new StringBuilder();
         sb.append(id);
         sb.append(",");
-        sb.append(counterBalance);
+        sb.append(originalCounterBalance);
         sb.append(",");
-        sb.append(scores[0]);
-        int totalScore = scores[0];
+        sb.append(simplifiedCounterBalance);
+        sb.append(",");
+        sb.append(testScores.get(0));
+        int totalScore = testScores.get(0);
         for (int i = 1; i < 16; i++) {
             sb.append(",");
-            sb.append(scores[i]);
-            totalScore += scores[i];
+            sb.append(testScores.get(i));
+            totalScore += testScores.get(i);
         }
         sb.append(",");
         sb.append(new BigDecimal(totalScore).divide(new BigDecimal(16), 4, BigDecimal.ROUND_HALF_EVEN));
         sb.append(",");
         sb.append("");
         sb.append(",");
-        sb.append(times[0]);
+        sb.append(testTimes.get(0));
         for (int i = 1; i < 16; i++) {
             sb.append(",");
-            sb.append(times[i]);
+            sb.append(testTimes.get(i));
         }
         return sb.toString();
     }

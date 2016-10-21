@@ -9,9 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.IntStream;
 
 @SpringBootApplication
@@ -20,6 +18,7 @@ public class Leap3Application implements CommandLineRunner {
     private AllRawData allRawData;
     private CounterBalance counterBalance;
     private File exportLocation;
+    private Configuration configuration;
 
     public static void main(String[] args) {
         SpringApplication.run(Leap3Application.class, args);
@@ -28,107 +27,155 @@ public class Leap3Application implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
 
-        List<String> words = new ArrayList<>(16);
-        for (int i = 0; i < 16; i++) {
-            words.add("Score " + (i + 1));
-        }
-        List<Subject> subjects = new ArrayList<>();
-        Subject subject = new Subject(0, 0);
+        final Map<Integer, Subject> subjects = new TreeMap<>();
+        final List<Map<String, String>> rows = allRawData.get();
 
-        List<Map<String, String>> rows = allRawData.get();
-
-        for (Map<String, String> row : rows) {
-
-            String counterBalancingRaw = row.get("EO");
-
+        for (final Map<String, String> row : rows) {
+            final String counterBalancingRaw = row.get("EO");
             if (!counterBalancingRaw.isEmpty()) {
-                int counterBalancing = Integer.parseInt(counterBalancingRaw);
+                int subjectId = Integer.parseInt(row.get("B"));
+                int simplifiedCounterBalance = Integer.parseInt(counterBalancingRaw);
+                int originalCounterBalance = counterBalance.get(subjectId);
+                Test test = Test.of(row.get("GC"));
+                int order = Integer.parseInt(row.get(configuration.orderCol(test)));
+                int score = Integer.parseInt(row.get(configuration.scoreCol(test)));
+                int reactionTime = Integer.parseInt(row.get(configuration.reactionTimeCol(test)));
+                String word = row.get(configuration.wordCol(test));
 
-                if (counterBalancing == 1) {
-
-                    int subjectId = Integer.parseInt(row.get("B"));
-                    int trial = Integer.parseInt(row.get("FG"));
-
-                    if (trial == 1) {
-                        subject = new Subject(subjectId, counterBalance.get(subjectId));
-                    }
-
-                    if (trial >= 1 && trial <= 16) {
-
-                        int order = Integer.parseInt(row.get("GN"));
-                        int score = Integer.parseInt(row.get("FT"));
-                        int reactionTime = Integer.parseInt(row.get("GA"));
-
-                        subject.putScore(order, score);
-                        subject.putTime(order, reactionTime);
-
-                        String word = row.get("FH");
-                        words.set(order - 1, word);
-                    }
-
-                    if (trial == 16) {
-                        subjects.add(subject);
-                    }
-                }
-
-                if (counterBalancing == 2) {
-
-                    int subjectId = Integer.parseInt(row.get("B"));
-                    int trial = Integer.parseInt(row.get("FG"));
-
-                    if (trial == 33) {
-                        subject = new Subject(subjectId, counterBalance.get(subjectId));
-                    }
-
-                    if (trial >= 33 && trial <= 48) {
-
-                        int order = Integer.parseInt(row.get("GT"));
-                        int score = Integer.parseInt(row.get("FT"));
-                        int reactionTime = Integer.parseInt(row.get("GA"));
-
-                        subject.putScore(order, score);
-                        subject.putTime(order, reactionTime);
-                    }
-
-                    if (trial == 48) {
-                        subjects.add(subject);
-                    }
-
-                }
+                Subject subject = subjects.getOrDefault(subjectId, new Subject(subjectId, originalCounterBalance, simplifiedCounterBalance));
+                subject.putScore(test, order, score);
+                subject.putTime(test, order, reactionTime);
+                subjects.put(subjectId, subject);
             }
         }
 
-        subjects.sort(Subject::compareTo);
+        for (Rule rule : Rule.values()) {
+            System.out.println(rule);
+            File export = new File(exportLocation, "export_" + rule.name().toLowerCase() + "_v3.csv");
+            FileWriter writer = new FileWriter(export);
 
-        List<List<String>> headerRows = header(words);
+            subjects.forEach((subjectId, subject) -> {
+                try {
+                    writer.append(subject.toCSV(rule) + "\n");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
 
-
-        File export = new File(exportLocation, "Data_Step_X-Rule_v2.csv");
-        FileWriter writer = new FileWriter(export);
-
-        for (List<String> headerRow : headerRows) {
-            System.out.print(headerRow.get(0));
-            writer.append(headerRow.get(0));
-            for (int i = 1; i < headerRow.size(); i++) {
-                System.out.print(",");
-                writer.append(",");
-                System.out.print(headerRow.get(i));
-                writer.append(headerRow.get(i));
-            }
-            System.out.println();
-            writer.append("\n");
+            writer.flush();
+            writer.close();
         }
-        subjects.forEach(s -> {
-            System.out.println(s.toCSV());
-            try {
-                writer.append(s.toCSV() + "\n");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
 
-        writer.flush();
-        writer.close();
+
+        Rule rule = Rule.STEPS_X;
+
+        System.out.println(subjects.get(1).toCSV(rule));
+        System.out.println(subjects.get(2).toCSV(rule));
+        System.out.println(subjects.get(3).toCSV(rule));
+        System.out.println(subjects.get(4).toCSV(rule));
+
+
+//        List<String> words = new ArrayList<>(16);
+//        for (int i = 0; i < 16; i++) {
+//            words.add("Score " + (i + 1));
+//        }
+//        List<Subject> subjects = new ArrayList<>();
+//        Subject subject = new Subject(0, 0);
+//
+//        List<Map<String, String>> rows = allRawData.get();
+//
+//        for (Map<String, String> row : rows) {
+//
+//            String counterBalancingRaw = row.get("EO");
+//
+//            if (!counterBalancingRaw.isEmpty()) {
+//                int counterBalancing = Integer.parseInt(counterBalancingRaw);
+//
+//                if (counterBalancing == 1) {
+//
+//                    int subjectId = Integer.parseInt(row.get("B"));
+//                    int trial = Integer.parseInt(row.get("FG"));
+//
+//                    if (trial == 1) {
+//                        subject = new Subject(subjectId, counterBalance.get(subjectId));
+//                    }
+//
+//                    if (trial >= 1 && trial <= 16) {
+//
+//                        int order = Integer.parseInt(row.get("GN"));
+//                        int score = Integer.parseInt(row.get("FT"));
+//                        int reactionTime = Integer.parseInt(row.get("GA"));
+//
+//                        subject.putScore(order, score);
+//                        subject.putTime(order, reactionTime);
+//
+//                        String word = row.get("FH");
+//                        words.set(order - 1, word);
+//                    }
+//
+//                    if (trial == 16) {
+//                        subjects.add(subject);
+//                    }
+//                }
+//
+//                if (counterBalancing == 2) {
+//
+//                    int subjectId = Integer.parseInt(row.get("B"));
+//                    int trial = Integer.parseInt(row.get("FG"));
+//
+//                    if (trial == 33) {
+//                        subject = new Subject(subjectId, counterBalance.get(subjectId));
+//                    }
+//
+//                    if (trial >= 33 && trial <= 48) {
+//
+//                        int order = Integer.parseInt(row.get("GT"));
+//                        int score = Integer.parseInt(row.get("FT"));
+//                        int reactionTime = Integer.parseInt(row.get("GA"));
+//
+//                        subject.putScore(order, score);
+//                        subject.putTime(order, reactionTime);
+//                    }
+//
+//                    if (trial == 48) {
+//                        subjects.add(subject);
+//                    }
+//
+//                }
+//            }
+//        }
+//
+//        subjects.sort(Subject::compareTo);
+//
+//        List<List<String>> headerRows = header(words);
+//
+//
+//        File export = new File(exportLocation, "Data_Step_X-Rule_v2.csv");
+//        FileWriter writer = new FileWriter(export);
+//
+//        for (List<String> headerRow : headerRows) {
+//            System.out.print(headerRow.get(0));
+//            writer.append(headerRow.get(0));
+//            for (int i = 1; i < headerRow.size(); i++) {
+//                System.out.print(",");
+//                writer.append(",");
+//                System.out.print(headerRow.get(i));
+//                writer.append(headerRow.get(i));
+//            }
+//            System.out.println();
+//            writer.append("\n");
+//        }
+//        subjects.forEach(s -> {
+//            System.out.println(s.toCSV());
+//            try {
+//                writer.append(s.toCSV() + "\n");
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//        });
+//
+//        writer.flush();
+//        writer.close();
 
     }
 
@@ -173,5 +220,10 @@ public class Leap3Application implements CommandLineRunner {
     @Value("${export.location}")
     public void setExportLocation(String exportLocation) {
         this.exportLocation = new File(exportLocation);
+    }
+
+    @Autowired
+    public void setConfiguration(Configuration configuration) {
+        this.configuration = configuration;
     }
 }
