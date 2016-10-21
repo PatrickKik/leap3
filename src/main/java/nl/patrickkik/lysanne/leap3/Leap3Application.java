@@ -1,19 +1,25 @@
 package nl.patrickkik.lysanne.leap3;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 @SpringBootApplication
 public class Leap3Application implements CommandLineRunner {
 
     private AllRawData allRawData;
     private CounterBalance counterBalance;
+    private File exportLocation;
 
     public static void main(String[] args) {
         SpringApplication.run(Leap3Application.class, args);
@@ -22,6 +28,10 @@ public class Leap3Application implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
 
+        List<String> words = new ArrayList<>(16);
+        for (int i = 0; i < 16; i++) {
+            words.add("Score " + (i + 1));
+        }
         List<Subject> subjects = new ArrayList<>();
         Subject subject = new Subject(0, 0);
 
@@ -51,6 +61,9 @@ public class Leap3Application implements CommandLineRunner {
 
                         subject.putScore(order, score);
                         subject.putTime(order, reactionTime);
+
+                        String word = row.get("FH");
+                        words.set(order - 1, word);
                     }
 
                     if (trial == 16) {
@@ -87,8 +100,61 @@ public class Leap3Application implements CommandLineRunner {
 
         subjects.sort(Subject::compareTo);
 
-        subjects.forEach(s -> System.out.println(s.toCSV()));
+        List<List<String>> headerRows = header(words);
 
+
+        File export = new File(exportLocation, "Data_Step_X-Rule_v2.csv");
+        FileWriter writer = new FileWriter(export);
+
+        for (List<String> headerRow : headerRows) {
+            System.out.print(headerRow.get(0));
+            writer.append(headerRow.get(0));
+            for (int i = 1; i < headerRow.size(); i++) {
+                System.out.print(",");
+                writer.append(",");
+                System.out.print(headerRow.get(i));
+                writer.append(headerRow.get(i));
+            }
+            System.out.println();
+            writer.append("\n");
+        }
+        subjects.forEach(s -> {
+            System.out.println(s.toCSV());
+            try {
+                writer.append(s.toCSV() + "\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+    }
+
+    private List<List<String>> header(List<String> words) {
+        List<List<String>> headers = new ArrayList<>();
+
+        final List<String> header1 = new ArrayList<>();
+        header1.add("Subject");
+        header1.add("Counter balance");
+        header1.add("RecSteps (Correct answers on steps of transformation)");
+        IntStream.rangeClosed(1, 17).forEach(i -> header1.add(""));
+        header1.add("All RTs RecSteps (in ms)");
+        IntStream.rangeClosed(1, 15).forEach(i -> header1.add(""));
+        headers.add(header1);
+
+        final List<String> header2 = new ArrayList<>();
+        header2.add("");
+        header2.add("");
+        for (int i = 0; i < words.size(); i++) {
+            header2.add((i + 1) + "=" + words.get(i));
+        }
+        header2.add("Score (som/16)");
+        header2.add("");
+        for (int i = 0; i < words.size(); i++) {
+            header2.add((i + 1) + "=" + words.get(i));
+        }
+        headers.add(header2);
+
+        return headers;
     }
 
     @Autowired
@@ -99,5 +165,10 @@ public class Leap3Application implements CommandLineRunner {
     @Autowired
     public void setCounterBalance(CounterBalance counterBalance) {
         this.counterBalance = counterBalance;
+    }
+
+    @Value("${export.location}")
+    public void setExportLocation(String exportLocation) {
+        this.exportLocation = new File(exportLocation);
     }
 }

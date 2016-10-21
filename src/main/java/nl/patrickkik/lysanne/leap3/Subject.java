@@ -41,6 +41,8 @@ class Subject implements Comparable<Subject> {
         sb.append(",");
         sb.append(new BigDecimal(totalScore).divide(new BigDecimal(16), 4, BigDecimal.ROUND_HALF_EVEN));
         sb.append(",");
+        sb.append("");
+        sb.append(",");
         sb.append(times[0]);
         for (int i = 1; i < 16; i++) {
             sb.append(",");
