@@ -1,5 +1,6 @@
 package nl.patrickkik.lysanne.leap3;
 
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -10,6 +11,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.IntStream;
 
@@ -30,6 +33,8 @@ public class Leap3Application implements CommandLineRunner {
 
         final Map<Integer, Subject> subjects = new TreeMap<>();
         final List<Map<String, String>> rows = allRawData.get();
+
+        // ============= Parsing
 
         for (final Map<String, String> row : rows) {
             final String counterBalancingRaw = row.get("EO");
@@ -58,9 +63,41 @@ public class Leap3Application implements CommandLineRunner {
             }
         }
 
+
+        // ============= Global data
+
+        Writer exportTestsWriter = new FileWriter(new File(exportLocation, "export_tests_v1.csv"));
+        Map<Rule, Double> standardDeviations = new EnumMap<>(Rule.class);
+        Map<Rule, Double> averages = new EnumMap<>(Rule.class);
+        exportTestsWriter.append("Test,Average,Standard Deviation,Total times,Invalid times,Invalid time percentage\n");
+        for (Rule rule : Rule.values()) {
+            StandardDeviation standardDeviation = new StandardDeviation();
+            subjects.values().stream()
+                    .flatMap(subject -> subject.getTimes(rule).stream())
+                    .forEach(standardDeviation::increment);
+            double avg = subjects.values().stream()
+                    .flatMapToInt(subject -> subject.getTimes(rule).stream().mapToInt(Integer::intValue))
+                    .average()
+                    .orElseThrow(() -> new IllegalStateException("Kan niet"));
+            averages.put(rule, avg);
+            standardDeviations.put(rule, standardDeviation.getResult());
+            int invalidTimes = subjects.values().stream()
+                    .mapToInt(subject -> subject.invalidTimes(rule, avg, standardDeviation.getResult()))
+                    .sum();
+            int totalTimes = 16 * subjects.size();
+            exportTestsWriter.append(rule.name() + ","
+                    + new BigDecimal(avg).setScale(2, RoundingMode.HALF_EVEN) + ","
+                    + new BigDecimal(standardDeviation.getResult()).setScale(2, RoundingMode.HALF_EVEN) + ","
+                    + totalTimes + ","
+                    + invalidTimes + ","
+                    + new BigDecimal(100 * invalidTimes).divide(new BigDecimal(totalTimes), 2, RoundingMode.HALF_EVEN) + "\n");
+        }
+
+
+        // ============= Exporting test data
+
 //        for (Rule rule : Rule.values()) {
-//            System.out.println(rule);
-//            File export = new File(exportLocation, "export_" + rule.name().toLowerCase() + "_v4.csv");
+//            File export = new File(exportLocation, "export_" + rule.name().toLowerCase() + "_v5.csv");
 //            Writer writer = new FileWriter(export);
 //
 //            List<List<String>> headerRows = header(subjects.get(1).words(rule));
@@ -75,7 +112,7 @@ public class Leap3Application implements CommandLineRunner {
 //
 //            subjects.forEach((subjectId, subject) -> {
 //                try {
-//                    writer.append(subject.toCSV(rule)).append("\n");
+//                    writer.append(subject.toCSV(rule, averages.get(rule), standardDeviations.get(rule))).append("\n");
 //                } catch (IOException e) {
 //                    throw new RuntimeException(e);
 //                }
@@ -85,27 +122,29 @@ public class Leap3Application implements CommandLineRunner {
 //            writer.close();
 //        }
 
-        Writer subjectsWriter = new FileWriter(new File(exportLocation, "export_subjects_v1.csv"));
-        subjectsWriter.append("Subject,Counter balanace (original),Counter balance (simplified),");
-        subjectsWriter.append("Beschrijving van de X-regel,Basis van beschrijving van de X-regel,Nederlandse regel herkenning X-regel,");
-        subjectsWriter.append("Beschrijving van de I-regel,Basis van beschrijving van de I-regel,Nederlandse regel herkenning I-regel\n");
-        subjects.forEach((subjectId, subject) -> {
-            try {
-                subjectsWriter.append(Integer.toString(subjectId)).append(",");
-                subjectsWriter.append(Integer.toString(subject.getOriginalCounterBalance())).append(",");
-                subjectsWriter.append(Integer.toString(subject.getSimplifiedCounterBalance())).append(",");
-                subjectsWriter.append("\"").append(subject.getDescrXRule()).append("\",");
-                subjectsWriter.append("\"").append(subject.getDescrXRuleBasis()).append("\",");
-                subjectsWriter.append("\"").append(subject.getDescrXRuleDutch()).append("\",");
-                subjectsWriter.append("\"").append(subject.getDescrIRule()).append("\",");
-                subjectsWriter.append("\"").append(subject.getDescrIRuleBasis()).append("\",");
-                subjectsWriter.append("\"").append(subject.getDescrIRuleDutch()).append("\"\n");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        subjectsWriter.flush();
-        subjectsWriter.close();
+        // ============= Exporting subject data
+
+//        Writer subjectsWriter = new FileWriter(new File(exportLocation, "export_subjects_v1.csv"));
+//        subjectsWriter.append("Subject,Counter balanace (original),Counter balance (simplified),");
+//        subjectsWriter.append("Beschrijving van de X-regel,Basis van beschrijving van de X-regel,Nederlandse regel herkenning X-regel,");
+//        subjectsWriter.append("Beschrijving van de I-regel,Basis van beschrijving van de I-regel,Nederlandse regel herkenning I-regel\n");
+//        subjects.forEach((subjectId, subject) -> {
+//            try {
+//                subjectsWriter.append(Integer.toString(subjectId)).append(",");
+//                subjectsWriter.append(Integer.toString(subject.getOriginalCounterBalance())).append(",");
+//                subjectsWriter.append(Integer.toString(subject.getSimplifiedCounterBalance())).append(",");
+//                subjectsWriter.append("\"").append(subject.getDescrXRule()).append("\",");
+//                subjectsWriter.append("\"").append(subject.getDescrXRuleBasis()).append("\",");
+//                subjectsWriter.append("\"").append(subject.getDescrXRuleDutch()).append("\",");
+//                subjectsWriter.append("\"").append(subject.getDescrIRule()).append("\",");
+//                subjectsWriter.append("\"").append(subject.getDescrIRuleBasis()).append("\",");
+//                subjectsWriter.append("\"").append(subject.getDescrIRuleDutch()).append("\"\n");
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//        });
+//        subjectsWriter.flush();
+//        subjectsWriter.close();
     }
 
     private List<List<String>> header(List<String> words) {
@@ -133,6 +172,7 @@ public class Leap3Application implements CommandLineRunner {
         for (int i = 0; i < words.size(); i++) {
             header2.add((i + 1) + "=" + words.get(i));
         }
+        header2.add("Average time");
         headers.add(header2);
 
         return headers;

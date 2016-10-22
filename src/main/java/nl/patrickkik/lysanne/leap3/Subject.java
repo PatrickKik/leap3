@@ -120,6 +120,10 @@ class Subject implements Comparable<Subject> {
         this.descrIRuleDutch = clean(descrIRuleDutch);
     }
 
+    List<Integer> getTimes(Rule rule) {
+        return times.get(toTest(rule));
+    }
+
     private String clean(String raw) {
         return raw.replaceAll("\\{SPACE\\}", " ")
                 .replaceAll("\\{ENTER\\}", "")
@@ -143,7 +147,7 @@ class Subject implements Comparable<Subject> {
                 ;
     }
 
-    String toCSV(Rule rule) {
+    String toCSV(Rule rule, double average, double standardDeviation) {
         Test test = toTest(rule);
         List<Integer> testScores = scores.get(test);
         List<Integer> testTimes = times.get(test);
@@ -167,12 +171,43 @@ class Subject implements Comparable<Subject> {
         sb.append(",");
         sb.append("");
         sb.append(",");
-        sb.append(testTimes.get(0));
+        sb.append(timeIfCorrectScore(testTimes, testScores, 0, average, standardDeviation));
         for (int i = 1; i < 16; i++) {
             sb.append(",");
-            sb.append(testTimes.get(i));
+            sb.append(timeIfCorrectScore(testTimes, testScores, i, average, standardDeviation));
         }
+        sb.append(",");
+        sb.append(averageTimeIfEnoughValues(testTimes, testScores, average, standardDeviation));
         return sb.toString();
+    }
+
+    int invalidTimes(Rule rule, double average, double standardDeviation) {
+        List<Integer> testTimes = times.get(toTest(rule));
+        List<Integer> testScores = scores.get(toTest(rule));
+        return (int) IntStream.range(0, 16)
+                .mapToObj(i -> timeIfCorrectScore(testTimes, testScores, i, average, standardDeviation))
+                .filter(String::isEmpty)
+                .count();
+    }
+
+    private String averageTimeIfEnoughValues(List<Integer> testTimes, List<Integer> testScores, double average, double standardDeviation) {
+        double averageTime = testTimes.stream().mapToInt(Integer::intValue).average().orElseThrow(IllegalStateException::new);
+        int validTimesCount = (int) IntStream.range(0, 16)
+                .mapToObj(i -> timeIfCorrectScore(testTimes, testScores, i, average, standardDeviation))
+                .filter(s -> !s.isEmpty())
+                .count();
+        return validTimesCount >= 12
+                ? new BigDecimal(averageTime).setScale(2, BigDecimal.ROUND_HALF_EVEN).toString()
+                : "";
+    }
+
+    private String timeIfCorrectScore(List<Integer> testTimes, List<Integer> testScores, int i, double average, double standardDeviation) {
+        int time = testTimes.get(i);
+        return testScores.get(i) == 1
+                ? time >= average - 2 * standardDeviation && time <= average + 2 * standardDeviation
+                ? Integer.toString(time)
+                : ""
+                : "";
     }
 
     List<String> words(Rule rule) {
