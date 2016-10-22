@@ -11,6 +11,7 @@ class Subject implements Comparable<Subject> {
     private final int simplifiedCounterBalance;
     private final Map<Test, List<Integer>> scores = new EnumMap<>(Test.class);
     private final Map<Test, List<Integer>> times = new EnumMap<>(Test.class);
+    private final Map<Test, List<String>> words = new EnumMap<>(Test.class);
 
     Subject(int id, int originalCounterBalance, int simplifiedCounterBalance) {
         this.id = id;
@@ -19,21 +20,34 @@ class Subject implements Comparable<Subject> {
     }
 
     void putScore(Test test, int order, int score) {
-        List<Integer> testScores = scores.getOrDefault(test, cleanList());
+        List<Integer> testScores = scores.getOrDefault(test, cleanIntegerList());
         testScores.set(order - 1, score);
         scores.put(test, testScores);
     }
 
     void putTime(Test test, int order, int time) {
-        List<Integer> testTimes = times.getOrDefault(test, cleanList());
+        List<Integer> testTimes = times.getOrDefault(test, cleanIntegerList());
         testTimes.set(order - 1, time);
         times.put(test, testTimes);
     }
 
-    private ArrayList<Integer> cleanList() {
+    void putWord(Test test, int order, String word) {
+        List<String> testWords = words.getOrDefault(test, cleanStringList());
+        testWords.set(order - 1, word);
+        words.put(test, testWords);
+    }
+
+    private ArrayList<Integer> cleanIntegerList() {
         ArrayList<Integer> list = new ArrayList<>(16);
         IntStream.range(0, 16)
                 .forEach(i -> list.add(0));
+        return list;
+    }
+
+    private ArrayList<String> cleanStringList() {
+        ArrayList<String> list = new ArrayList<>(16);
+        IntStream.range(0, 16)
+                .forEach(i -> list.add(""));
         return list;
     }
 
@@ -74,6 +88,11 @@ class Subject implements Comparable<Subject> {
             sb.append(testTimes.get(i));
         }
         return sb.toString();
+    }
+
+    List<String> words(Rule rule) {
+        Test test = toTest(rule);
+        return words.get(test);
     }
 
     @Override
