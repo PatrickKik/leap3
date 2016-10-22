@@ -12,6 +12,12 @@ class Subject implements Comparable<Subject> {
     private final Map<Test, List<Integer>> scores = new EnumMap<>(Test.class);
     private final Map<Test, List<Integer>> times = new EnumMap<>(Test.class);
     private final Map<Test, List<String>> words = new EnumMap<>(Test.class);
+    private String descrXRule;
+    private String descrXRuleBasis;
+    private String descrXRuleDutch;
+    private String descrIRule;
+    private String descrIRuleBasis;
+    private String descrIRuleDutch;
 
     Subject(int id, int originalCounterBalance, int simplifiedCounterBalance) {
         this.id = id;
@@ -56,6 +62,85 @@ class Subject implements Comparable<Subject> {
                 .filter(test -> scores.keySet().contains(test))
                 .findAny()
                 .orElseThrow(() -> new IllegalArgumentException(rule.name()));
+    }
+
+    int getOriginalCounterBalance() {
+        return originalCounterBalance;
+    }
+
+    int getSimplifiedCounterBalance() {
+        return simplifiedCounterBalance;
+    }
+
+    String getDescrXRule() {
+        return descrXRule;
+    }
+
+    void setDescrXRule(String descrXRule) {
+        this.descrXRule = clean(descrXRule);
+    }
+
+    String getDescrXRuleBasis() {
+        return descrXRuleBasis;
+    }
+
+    void setDescrXRuleBasis(String descrXRuleBasis) {
+        this.descrXRuleBasis = clean(descrXRuleBasis);
+    }
+
+    String getDescrXRuleDutch() {
+        return descrXRuleDutch;
+    }
+
+    void setDescrXRuleDutch(String descrXRuleDutch) {
+        this.descrXRuleDutch = clean(descrXRuleDutch);
+    }
+
+    String getDescrIRule() {
+        return descrIRule;
+    }
+
+    void setDescrIRule(String descrIRule) {
+        this.descrIRule = clean(descrIRule);
+    }
+
+    String getDescrIRuleBasis() {
+        return descrIRuleBasis;
+    }
+
+    void setDescrIRuleBasis(String descrIRuleBasis) {
+        this.descrIRuleBasis = clean(descrIRuleBasis);
+    }
+
+    String getDescrIRuleDutch() {
+        return descrIRuleDutch;
+    }
+
+    void setDescrIRuleDutch(String descrIRuleDutch) {
+        this.descrIRuleDutch = clean(descrIRuleDutch);
+    }
+
+    private String clean(String raw) {
+        return raw.replaceAll("\\{SPACE\\}", " ")
+                .replaceAll("\\{ENTER\\}", "")
+                .replaceAll("\\{SHIFT\\}", "")
+                .replaceAll("\\{CAPSLOCK\\}", "")
+                .replaceAll("\\{UPARROW\\}", "")
+                .replaceAll("\\{DOWNARROW\\}", "")
+                .replaceAll("\\{LEFTARROW\\}", "")
+                .replaceAll("\\{RIGHTARROW\\}", "")
+                .replaceAll("\\{TAB\\}", "")
+                .replaceAll("\\{CONTROL\\}", "")
+                .replaceAll("\\{/\\}", "/")
+                .replaceAll("\\{-\\}", "-")
+                .replaceAll("\\{,\\}", ",")
+                .replaceAll("\\{\\.\\}", ".")
+                .replaceAll("\\{'\\}", "'")
+                .replaceAll("\\{:\\}", ":")
+                .replaceAll("\\{\\+\\}", "+")
+                .replaceAll("\\{\\(\\}", "(")
+                .replaceAll("\\{\\)\\}", ")")
+                ;
     }
 
     String toCSV(Rule rule) {

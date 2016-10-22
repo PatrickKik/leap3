@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.*;
 import java.util.stream.IntStream;
 
@@ -46,38 +47,65 @@ public class Leap3Application implements CommandLineRunner {
                 subject.putScore(test, order, score);
                 subject.putTime(test, order, reactionTime);
                 subject.putWord(test, order, word);
+                subject.setDescrXRule(row.get(configuration.descrXRuleCol(simplifiedCounterBalance)));
+                subject.setDescrXRuleBasis(row.get(configuration.descrXRuleBasisCol(simplifiedCounterBalance)));
+                subject.setDescrXRuleDutch(row.get(configuration.descrXRuleDutchCol(simplifiedCounterBalance)));
+                subject.setDescrIRule(row.get(configuration.descrIRuleCol(simplifiedCounterBalance)));
+                subject.setDescrIRuleBasis(row.get(configuration.descrIRuleBasisCol(simplifiedCounterBalance)));
+                subject.setDescrIRuleDutch(row.get(configuration.descrIRuleDutchCol(simplifiedCounterBalance)));
 
                 subjects.put(subjectId, subject);
             }
         }
 
-        for (Rule rule : Rule.values()) {
-            System.out.println(rule);
-            File export = new File(exportLocation, "export_" + rule.name().toLowerCase() + "_v4.csv");
-            FileWriter writer = new FileWriter(export);
+//        for (Rule rule : Rule.values()) {
+//            System.out.println(rule);
+//            File export = new File(exportLocation, "export_" + rule.name().toLowerCase() + "_v4.csv");
+//            Writer writer = new FileWriter(export);
+//
+//            List<List<String>> headerRows = header(subjects.get(1).words(rule));
+//            for (List<String> headerRow : headerRows) {
+//                writer.append(headerRow.get(0));
+//                for (int i = 1; i < headerRow.size(); i++) {
+//                    writer.append(",");
+//                    writer.append(headerRow.get(i));
+//                }
+//                writer.append("\n");
+//            }
+//
+//            subjects.forEach((subjectId, subject) -> {
+//                try {
+//                    writer.append(subject.toCSV(rule)).append("\n");
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            });
+//
+//            writer.flush();
+//            writer.close();
+//        }
 
-            List<List<String>> headerRows = header(subjects.get(1).words(rule));
-            for (List<String> headerRow : headerRows) {
-                writer.append(headerRow.get(0));
-                for (int i = 1; i < headerRow.size(); i++) {
-                    writer.append(",");
-                    writer.append(headerRow.get(i));
-                }
-                writer.append("\n");
+        Writer subjectsWriter = new FileWriter(new File(exportLocation, "export_subjects_v1.csv"));
+        subjectsWriter.append("Subject,Counter balanace (original),Counter balance (simplified),");
+        subjectsWriter.append("Beschrijving van de X-regel,Basis van beschrijving van de X-regel,Nederlandse regel herkenning X-regel,");
+        subjectsWriter.append("Beschrijving van de I-regel,Basis van beschrijving van de I-regel,Nederlandse regel herkenning I-regel\n");
+        subjects.forEach((subjectId, subject) -> {
+            try {
+                subjectsWriter.append(Integer.toString(subjectId)).append(",");
+                subjectsWriter.append(Integer.toString(subject.getOriginalCounterBalance())).append(",");
+                subjectsWriter.append(Integer.toString(subject.getSimplifiedCounterBalance())).append(",");
+                subjectsWriter.append("\"").append(subject.getDescrXRule()).append("\",");
+                subjectsWriter.append("\"").append(subject.getDescrXRuleBasis()).append("\",");
+                subjectsWriter.append("\"").append(subject.getDescrXRuleDutch()).append("\",");
+                subjectsWriter.append("\"").append(subject.getDescrIRule()).append("\",");
+                subjectsWriter.append("\"").append(subject.getDescrIRuleBasis()).append("\",");
+                subjectsWriter.append("\"").append(subject.getDescrIRuleDutch()).append("\"\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-
-            subjects.forEach((subjectId, subject) -> {
-                try {
-                    writer.append(subject.toCSV(rule)).append("\n");
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-
-            writer.flush();
-            writer.close();
-        }
-
+        });
+        subjectsWriter.flush();
+        subjectsWriter.close();
     }
 
     private List<List<String>> header(List<String> words) {
